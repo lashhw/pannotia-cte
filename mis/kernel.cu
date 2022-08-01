@@ -227,9 +227,6 @@ __global__ void mis1_cte(const int* __restrict__ row,
     int warp_id = threadIdx.x / WARP_SIZE;
     int lane_id = threadIdx.x % WARP_SIZE;
 
-    bool not_processed = global_thread_id < num_nodes && c_array[global_thread_id] == -1;
-    if (not_processed) *stop = 1;
-
     scans[warp_id][lane_id] = (global_thread_id + 1 < num_nodes) ? row[global_thread_id + 1] : num_edges;
     int global_fine_task_start_id = (global_thread_id - lane_id < num_nodes) ? row[global_thread_id - lane_id] : num_edges;
 
@@ -243,25 +240,32 @@ __global__ void mis1_cte(const int* __restrict__ row,
         int global_fine_task_id = global_fine_task_start_id + fine_task_id;
 
         int coarse_task_id = binary_search(scans[warp_id], global_fine_task_id, 0, WARP_SIZE);
-        int global_coarse_task_fine_start_id = (coarse_task_id == 0) ? global_fine_task_start_id : scans[warp_id][coarse_task_id - 1];
-        int global_coarse_task_fine_end_id = scans[warp_id][coarse_task_id];
-        int seg_start_id = global_coarse_task_fine_start_id - global_fine_task_start_id;
-        int in_seg_id = min(lane_id, fine_task_id - seg_start_id);
-        int seg_size = min(global_coarse_task_fine_end_id - global_fine_task_id, WARP_SIZE - lane_id) + in_seg_id;
+        int global_coarse_task_id = global_thread_id - lane_id + coarse_task_id;
+        if (c_array[global_coarse_task_id] == -1) {
+            int global_coarse_task_fine_start_id = (coarse_task_id == 0) ? global_fine_task_start_id : scans[warp_id][coarse_task_id - 1];
+            int global_coarse_task_fine_end_id = scans[warp_id][coarse_task_id];
+            int seg_start_id = global_coarse_task_fine_start_id - global_fine_task_start_id;
+            int in_seg_id = min(lane_id, fine_task_id - seg_start_id);
+            int seg_size = min(global_coarse_task_fine_end_id - global_fine_task_id, WARP_SIZE - lane_id) + in_seg_id;
 
-        mapped[warp_id][lane_id] = BIGNUM;
-        if (c_array[col[global_fine_task_id]] == -1) {
-            mapped[warp_id][lane_id] = node_value[col[global_fine_task_id]];
-        }
-
-        for (int stride = WARP_SIZE >> 1; stride > 0; stride >>= 1) {
-            if (in_seg_id + stride < seg_size) {
-                mapped[warp_id][lane_id] = min(mapped[warp_id][lane_id], mapped[warp_id][lane_id + stride]);
+            mapped[warp_id][lane_id] = BIGNUM;
+            if (c_array[col[global_fine_task_id]] == -1) {
+                mapped[warp_id][lane_id] = node_value[col[global_fine_task_id]];
             }
-        }
 
-        if (in_seg_id == 0) reds[warp_id][coarse_task_id] = min(reds[warp_id][coarse_task_id], mapped[warp_id][lane_id]);
+            for (int stride = WARP_SIZE >> 1; stride > 0; stride >>= 1) {
+                if (in_seg_id + stride < seg_size) {
+                    mapped[warp_id][lane_id] = min(mapped[warp_id][lane_id], mapped[warp_id][lane_id + stride]);
+                }
+            }
+
+            if (in_seg_id == 0)
+                reds[warp_id][coarse_task_id] = min(reds[warp_id][coarse_task_id], mapped[warp_id][lane_id]);
+        }
     }
 
-    if (not_processed) min_array[global_thread_id] = reds[warp_id][lane_id];
+    if (global_thread_id < num_nodes && c_array[global_thread_id] == -1) {
+        *stop = 1;
+        min_array[global_thread_id] = reds[warp_id][lane_id];
+    }
 }
