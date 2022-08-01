@@ -214,8 +214,8 @@ __global__ void spmv_min_dot_plus_kernel_cte(const int num_rows,
     int warp_id = threadIdx.x / WARP_SIZE;
     int lane_id = threadIdx.x % WARP_SIZE;
 
-    scans[warp_id][lane_id] = (global_thread_id < num_rows) ? row[global_thread_id + 1] : row[num_rows];
-    int global_fine_task_start_id = row[global_thread_id - lane_id];
+    scans[warp_id][lane_id] = (global_thread_id + 1 <= num_rows) ? row[global_thread_id + 1] : row[num_rows];
+    int global_fine_task_start_id = (global_thread_id - lane_id <= num_rows) ? row[global_thread_id - lane_id] : row[num_rows];
 
     reds[warp_id][lane_id] = BIG_NUM;
 

@@ -167,7 +167,7 @@ __global__ void pagerank1_cte(const int* __restrict__ row,
     int warp_id = threadIdx.x / WARP_SIZE;
     int lane_id = threadIdx.x % WARP_SIZE;
 
-    scans[warp_id][lane_id] = (global_thread_id < num_nodes - 1) ? row[global_thread_id + 1] : num_edges;
+    scans[warp_id][lane_id] = (global_thread_id + 1 < num_nodes) ? row[global_thread_id + 1] : num_edges;
     int global_fine_task_start_id = (global_thread_id - lane_id < num_nodes) ? row[global_thread_id - lane_id] : num_edges;
 
     int num_fine_tasks = scans[warp_id][WARP_SIZE - 1] - global_fine_task_start_id;

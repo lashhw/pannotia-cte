@@ -230,8 +230,8 @@ __global__ void mis1_cte(const int* __restrict__ row,
     bool not_processed = global_thread_id < num_nodes && c_array[global_thread_id] == -1;
     if (not_processed) *stop = 1;
 
-    scans[warp_id][lane_id] = (global_thread_id < num_nodes - 1) ? row[global_thread_id + 1] : num_edges;
-    int global_fine_task_start_id = row[global_thread_id - lane_id];
+    scans[warp_id][lane_id] = (global_thread_id + 1 < num_nodes) ? row[global_thread_id + 1] : num_edges;
+    int global_fine_task_start_id = (global_thread_id - lane_id < num_nodes) ? row[global_thread_id - lane_id] : num_edges;
 
     reds[warp_id][lane_id] = BIGNUM;
 

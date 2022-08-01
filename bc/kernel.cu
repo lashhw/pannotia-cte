@@ -259,17 +259,13 @@ __global__ void bfs_kernel_cte(const int* __restrict__ row,
 
     constexpr int WARPS_PER_BLOCK = BLOCK_SIZE / WARP_SIZE;
     volatile __shared__ int scans[WARPS_PER_BLOCK][WARP_SIZE];
-    volatile __shared__ int mapped[WARPS_PER_BLOCK][WARP_SIZE];
-    volatile __shared__ int reds[WARPS_PER_BLOCK][WARP_SIZE];
 
     int global_thread_id = blockIdx.x * blockDim.x + threadIdx.x;
     int warp_id = threadIdx.x / WARP_SIZE;
     int lane_id = threadIdx.x % WARP_SIZE;
 
-    scans[warp_id][lane_id] = (global_thread_id < num_nodes - 1) ? row[global_thread_id + 1] : num_edges;
-    int global_fine_task_start_id = row[global_thread_id - lane_id];
-
-    reds[warp_id][lane_id] = -1;
+    scans[warp_id][lane_id] = (global_thread_id + 1 < num_nodes) ? row[global_thread_id + 1] : num_edges;
+    int global_fine_task_start_id = (global_thread_id - lane_id < num_edges) ? row[global_thread_id - lane_id] : num_edges;
 
     int num_fine_tasks = scans[warp_id][WARP_SIZE - 1] - global_fine_task_start_id;
 

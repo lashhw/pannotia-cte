@@ -63,7 +63,7 @@
 #include <algorithm>
 #include "BC.h"
 #include "../graph_parser/util.h"
-#include "kernel.cuh"
+#include "kernel.cu"
 
 #ifdef GEM5_FUSION
 #include <stdint.h>
@@ -228,7 +228,7 @@ int main(int argc, char **argv)
             // Copy the termination variable to the device
             cudaMemcpy(stop_d, &stop, sizeof(int), cudaMemcpyHostToDevice);
 
-            bfs_kernel_cte<local_worksize><<< grid, threads >>>(row_d, col_d, dist_d, rho_d, stop_d,
+            bfs_kernel_cte<local_worksize> <<< grid, threads >>>(row_d, col_d, dist_d, rho_d, stop_d,
                                             num_nodes, num_edges, dist);
 
             // Copy back the termination variable from the device
@@ -256,6 +256,8 @@ int main(int argc, char **argv)
     }
     cudaDeviceSynchronize();
     timer4 = gettime();
+
+    printf("%d\n", cudaGetLastError());
 
     // Copy back the results for the bc array
     err = cudaMemcpy(bc_h, bc_d, num_nodes * sizeof(float), cudaMemcpyDeviceToHost);
