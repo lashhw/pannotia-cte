@@ -275,15 +275,16 @@ __global__ void bfs_kernel_cte(const int* __restrict__ row,
         int global_fine_task_id = global_fine_task_start_id + fine_task_id;
 
         int coarse_task_id = binary_search(scans[warp_id], global_fine_task_id, 0, WARP_SIZE);
+        int global_coarse_task_id = global_thread_id - lane_id + coarse_task_id;
 
-        if (d[coarse_task_id] == dist) {
+        if (d[global_coarse_task_id] == dist) {
             int w = col[global_fine_task_id];
             if (d[w] < 0) {
                 *cont = 1;
                 d[w] = dist + 1;
             }
             if (d[w] == dist + 1) {
-                atomicAdd(&rho[w], rho[coarse_task_id]);
+                atomicAdd(&rho[w], rho[global_coarse_task_id]);
             }
         }
     }
